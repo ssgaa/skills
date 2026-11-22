@@ -1,0 +1,24 @@
+# Conventional Commits 1.0.0 기반 커밋 표준 — PR 제목 검사 (commit 스킬)
+# 스쿼시 머지에서는 PR 제목이 main에 남는 커밋 제목이 되므로 커밋과 같은 규칙으로 검사한다.
+# 저장소에 .githooks/commit-msg(스킬의 scripts/check_commit_msg.sh 사본)가 있어야 한다.
+name: PR 제목 검사
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .githooks
+      - name: 커밋 표준으로 PR 제목 검사
+        env:
+          # 제목을 run 스크립트에 직접 넣지 않고 환경 변수로 넘겨 스크립트 주입을 막는다.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | sh .githooks/commit-msg --title -
