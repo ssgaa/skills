@@ -1,0 +1,36 @@
+# 스킬 저장소 CI: 스킬 형식 검증, 스킬별 테스트, PR 제목 검사
+name: CI
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  skills:
+    name: 스킬 형식 검증과 테스트
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: SKILL.md 형식 검증
+        run: python3 scripts/validate_skills.py
+      - name: commit 검사기 테스트 (sh)
+        run: sh tests/commit/test_check_commit_msg.sh
+      - name: commit 검사기 테스트 (bash)
+        run: SH=bash bash tests/commit/test_check_commit_msg.sh
+
+  pr-title:
+    name: PR 제목 검사
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: 커밋 표준으로 PR 제목 검사
+        env:
+          # 제목을 run 스크립트에 직접 넣지 않고 환경 변수로 넘겨 스크립트 주입을 막는다.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | sh skills/commit/scripts/check_commit_msg.sh --title -
