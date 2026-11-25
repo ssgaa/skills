@@ -1,10 +1,10 @@
 # 저장소에 커밋 표준(Conventional Commits 1.0.0 기반) 깔기
 
-사용자가 요청한 것만 설치한다. 각 단계는 따로 설치해도 된다. 설치 파일은 스킬의 `assets/`와 `scripts/`에 있다. 설치를 마치면 그 변경도 표준에 맞춰 커밋한다(예: `ci: 커밋 메시지·PR 제목 검사 추가`, `chore(claude): Claude Code 표기 설정 추가`).
+사용자가 요청한 것만 설치한다. 각 단계는 따로 설치해도 된다. 설치 파일은 스킬의 `assets/`와 `scripts/`에 있다. 설치를 마치면 그 변경도 표준에 맞춰 커밋한다(예: `ci: 커밋 메시지·PR 제목 검사 추가`).
 
 | 단계 | 하는 일 | 언제 |
 | --- | --- | --- |
-| 1 | Claude Code 기본 표기를 팀 규칙으로 바꾸기 | Claude Code를 쓰는 모든 저장소 |
+| 1 | 에이전트 도구의 커밋 자동 표기 끄기 | AI 에이전트로 커밋하는 모든 저장소 |
 | 2 | commit-msg 훅으로 메시지 검사 | 커밋마다 표준을 지키게 할 때(머지 커밋·리베이스 방식) |
 | 3 | commitlint 설정 | husky + commitlint를 이미 쓰는 JS 저장소 |
 | 4 | PR 제목 검사 | 스쿼시 머지를 쓰는 GitHub 저장소 |
@@ -12,30 +12,18 @@
 
 스쿼시 머지만 쓰는 저장소는 브랜치 커밋이 머지 때 합쳐지므로 2번을 건너뛰고 4번만 깔아도 된다.
 
-## 1. Claude Code 기본 표기 바꾸기 — `.claude/settings.json`
+## 1. 에이전트 도구의 커밋 자동 표기 끄기
 
-`assets/claude-settings.json`의 `attribution` 블록을 저장소의 `.claude/settings.json`에 넣는다. 파일이 이미 있으면 다른 키는 건드리지 말고 `attribution`만 추가하거나 바꾼다. 프로젝트 설정 파일이라 커밋하면 팀 전체에 적용된다. 개인 설정으로만 쓰려면 `~/.claude/settings.json`에 넣는다.
+AI 에이전트 도구 중에는 커밋이나 PR에 표기를 자동으로 붙이는 것이 있다. AI를 공동 작성자로 올리는 `Co-authored-by` 트레일러, "Generated with …" 같은 생성 문구, 세션 링크가 대표적이다. 이 표준은 그런 표기 대신 `Assisted-by: <에이전트 이름>` 한 줄만 쓴다.
 
-```json
-{
-  "attribution": {
-    "commit": "Assisted-by: Claude Code",
-    "pr": "",
-    "sessionUrl": false
-  }
-}
-```
-
-- `commit`: Claude Code가 커밋 끝에 붙이는 문구다. 기본값은 `Co-Authored-By: <모델 이름> <noreply@anthropic.com>`이고, 팀 규칙에 맞춰 `Assisted-by: Claude Code`로 바꿨다. AI 표기를 아예 안 하는 저장소라면 `""`로 둔다.
-- `pr`: PR 본문 끝 문구다. 기본값 `🤖 Generated with [Claude Code](…)`를 `""`로 숨긴다.
-- `sessionUrl`: 웹(클라우드)이나 Remote Control 세션에서 커밋·PR에 붙는 `Claude-Session:` 링크를 끈다.
-- `commit`과 `pr` 중 하나만 적으면 나머지는 기본 문구로 돌아가므로 셋 다 둔다.
-- 옛 키 `includeCoAuthoredBy`는 폐기됐으니 쓰지 않는다. `"attribution": false` 단축형은 구버전 Claude Code가 거부하므로 공유 파일에는 위의 객체 형태를 쓴다.
-- 회사가 관리형 설정(managed settings)으로 표기를 정해 두면 이 파일로는 바뀌지 않는다. 그럴 땐 사용자에게 관리자 확인이 필요하다고 알린다.
+- 쓰는 도구에 이런 표기를 끄거나 문구를 바꾸는 설정이 있으면, 끄거나 `Assisted-by: <에이전트 이름>`으로 바꾼다. 설정 이름과 위치는 도구마다 다르니 그 도구의 문서를 확인한다.
+- 도구가 저장소 단위 설정을 지원하면 그 설정 파일에 넣어 커밋한다. 그러면 저장소를 쓰는 모두에게 적용된다.
+- 조직 관리자가 정책으로 표기를 정해 두었으면 저장소 설정으로는 바뀌지 않는다. 그럴 땐 사용자에게 관리자 확인이 필요하다고 알린다.
+- 설정이 없거나 확실하지 않아도 괜찮다. 2번 훅이 마지막에 막는다.
 
 ## 2. commit-msg 훅 — 언어와 상관없이 쓰는 기본값
 
-`scripts/check_commit_msg.sh`를 저장소의 훅으로 넣는다. POSIX sh라 Node·Python 없이 macOS, Linux, Git Bash에서 돈다.
+`scripts/check_commit_msg.sh`를 저장소의 훅으로 넣는다. POSIX sh라 Node나 Python 없이 macOS, Linux, Git Bash에서 돈다.
 
 ```sh
 mkdir -p .githooks
@@ -69,7 +57,21 @@ git config core.hooksPath .githooks
             stages: [commit-msg]
     ```
 
-검사기가 막는 것: 헤더 형식(type 11개, 소문자 scope, `: ` 뒤 제목), 대상 없는 제목("수정", "WIP" 등), 72자 넘는 헤더, 헤더 끝 마침표, 헤더의 이모지, 헤더와 본문 사이 빈 줄 누락, `!`와 `BREAKING CHANGE:` 중 하나만 있는 경우, Claude 기본 표기. 본문 한 줄이 100자를 넘으면 경고만 한다. `Merge`, `Revert "…"`, `fixup!`, `squash!`, `amend!`로 시작하는 자동 메시지는 건너뛴다.
+- 기본 검사가 못 잡는 표기가 있으면 저장소 루트에 `.commit-msg-deny`를 두고 패턴을 적는다. 한 줄에 확장 정규식 하나를 쓰고(대소문자 무시), `#`으로 시작하는 줄과 빈 줄은 건너뛴다. 3번 commitlint 설정도 같은 파일을 읽는다.
+
+  ```
+  # 예: 어떤 도구가 붙이는 공동 작성자 서명
+  ^Co-authored-by: Example Agent
+  ```
+
+검사기가 막는 것:
+
+- 헤더 형식(type 11개, 소문자 scope, `: ` 뒤 제목), 대상 없는 제목("수정", "WIP" 등), 72자 넘는 헤더, 헤더 끝 마침표, 헤더의 이모지
+- 헤더와 본문 사이 빈 줄 누락, `!`와 `BREAKING CHANGE:` 중 하나만 있는 경우
+- AI 도구의 자동 표기: noreply 주소나 `[bot]` 계정의 `Co-authored-by`(사람이 쓰는 GitHub noreply 주소는 허용), 링크가 붙은 생성 문구, 로봇 이모지로 시작하는 줄, `<이름>-Session:` 트레일러
+- `.commit-msg-deny`의 패턴
+
+본문 한 줄이 100자를 넘으면 경고만 한다. `Merge`, `Revert "…"`, `fixup!`, `squash!`, `amend!`로 시작하는 자동 메시지는 건너뛴다.
 
 설치 후 확인:
 
@@ -100,4 +102,4 @@ echo 'npx --no -- commitlint --edit "$1"' > .husky/commit-msg
 ## 5. 문서에 남기기
 
 - `CONTRIBUTING.md`(없으면 README)에 SKILL.md 3~6장의 요약과 4장 type 표, `git config core.hooksPath .githooks` 안내를 넣는다.
-- AI 도구용 지침 파일(`CLAUDE.md`, `AGENTS.md` 등)이 있으면 "커밋 메시지와 PR 제목은 Conventional Commits 1.0.0 기반 커밋 표준(commit 스킬)을 따른다. Co-Authored-By Claude 같은 기본 표기 대신 Assisted-by: Claude Code를 쓴다."를 넣는다. 이 스킬이 없는 환경의 에이전트도 같은 규칙을 보게 하려는 것이다.
+- `AGENTS.md`처럼 에이전트가 읽는 지침 파일이 있으면 "커밋 메시지와 PR 제목은 Conventional Commits 1.0.0 기반 커밋 표준(commit 스킬)을 따른다. AI 도구의 자동 표기 대신 `Assisted-by: <에이전트 이름>`을 쓴다."를 넣는다. 이 스킬을 쓰지 않는 에이전트도 같은 규칙을 보게 하려는 것이다.

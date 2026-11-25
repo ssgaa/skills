@@ -6,6 +6,8 @@
 #   check_commit_msg.sh -                  표준 입력으로 받은 메시지를 검사
 #   check_commit_msg.sh --title <파일|->   PR 제목처럼 한 줄 헤더만 검사
 #
+# 저장소 루트의 .commit-msg-deny에 패턴을 적으면 그 패턴도 막는다(경로는 COMMIT_MSG_DENY_FILE로 바꿀 수 있다).
+#
 # 종료 코드: 0 통과, 1 표준 위반, 2 사용법 오류
 # POSIX sh로 작성해 macOS, Linux, Git Bash(Windows)에서 같은 결과가 나오게 했다.
 
@@ -129,9 +131,39 @@ if [ "$mode" = full ]; then
   done
 fi
 
-# 9) Claude 기본 표기는 쓰지 않는다 (사람 공동 작업자의 Co-authored-by는 허용)
-if printf '%s\n' "$msg" | LC_ALL=C grep -Eiq '^(co-authored-by:.*noreply@anthropic\.com|claude-session:)|generated with \[claude code\]'; then
-  err "Claude 기본 표기(Co-Authored-By: Claude…, Generated with Claude Code, Claude-Session:)는 쓰지 않습니다. AI가 작성한 코드는 'Assisted-by: Claude Code' 한 줄로 표기합니다."
+# 9) AI 도구의 자동 표기는 쓰지 않는다. AI 사용은 Assisted-by 한 줄로만 남긴다.
+#    - AI를 공동 작성자로 올리는 Co-authored-by: noreply 주소(사람이 쓰는 GitHub noreply 주소는 제외)나 [bot] 계정
+#    - 세션·대화 링크 트레일러: <이름>-Session:
+#    - 링크가 붙은 생성 표기("Generated with/by [도구](…)")와 로봇 이모지로 시작하는 줄
+ai_lines=$(printf '%s\n' "$msg" | LC_ALL=C awk '
+  { l = tolower($0) }
+  l ~ /^co-authored-by:/ && ((l ~ /noreply@/ && l !~ /users\.noreply\.github\.com/) || l ~ /\[bot\]/) { print; next }
+  l ~ /^[a-z0-9][a-z0-9-]*-session:/ { print; next }
+  l ~ /generated (with|by) \[/ { print; next }
+')
+robot_lines=$(printf '%s\n' "$msg" | LC_ALL=C grep "^$(printf '\360\237\244\226')" || true)
+ai_hits=$(printf '%s\n%s\n' "$ai_lines" "$robot_lines" | sed '/^$/d' | awk '!seen[$0]++')
+if [ -n "$ai_hits" ]; then
+  err "AI 도구의 자동 표기(AI 공동 작성자 Co-authored-by, 생성 표기 문구, 세션 링크 트레일러)는 쓰지 않습니다. AI가 작성한 코드는 'Assisted-by: <에이전트 이름>' 한 줄로 표기합니다."
+  printf '%s\n' "$ai_hits" | sed 's/^/      문제 줄: /' >&2
+fi
+
+# 10) 저장소가 따로 막는 패턴: 저장소 루트의 .commit-msg-deny(또는 COMMIT_MSG_DENY_FILE)
+#     한 줄에 확장 정규식 하나(대소문자 무시). #으로 시작하는 줄과 빈 줄은 건너뛴다.
+deny_file=${COMMIT_MSG_DENY_FILE:-}
+if [ -z "$deny_file" ]; then
+  top=$(git rev-parse --show-toplevel 2>/dev/null || true)
+  if [ -n "$top" ]; then deny_file="$top/.commit-msg-deny"; fi
+fi
+if [ -n "$deny_file" ] && [ -r "$deny_file" ]; then
+  deny_hits=$(tr -d '\r' < "$deny_file" | sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' \
+    | while IFS= read -r pat || [ -n "$pat" ]; do
+        printf '%s\n' "$msg" | grep -Ei -- "$pat" || true
+      done | awk '!seen[$0]++')
+  if [ -n "$deny_hits" ]; then
+    err "이 저장소에서 쓰지 않기로 한 표기가 들어 있습니다(.commit-msg-deny)."
+    printf '%s\n' "$deny_hits" | sed 's/^/      문제 줄: /' >&2
+  fi
 fi
 
 if [ "$errors" -gt 0 ]; then

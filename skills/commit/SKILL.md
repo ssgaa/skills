@@ -1,16 +1,16 @@
 ---
 name: commit
-description: "Conventional Commits 1.0.0 기반 커밋 표준대로 변경을 커밋 단위로 나누고, 커밋 메시지와 PR 제목을 쓰고, 커밋한다. 11개 type 중 목적에 맞는 것을 고르고 type(scope)!: 한국어 제목 형식의 헤더, '왜' 중심 본문, BREAKING CHANGE·Closes·Assisted-by 푸터를 쓰며, Co-Authored-By Claude나 Generated with Claude Code 같은 기본 표기는 넣지 않는다. 메시지 검사 스크립트와, 저장소에 commit-msg 훅·Claude Code 표기 설정·PR 제목 검사를 까는 방법도 들어 있다. 사용자가 커밋, 커밋해줘, 커밋 메시지 써줘, 커밋 나눠줘, PR 만들어줘, PR 제목, 스쿼시 머지, 커밋 컨벤션, 커밋 규칙 세팅, 커밋 훅, commitlint, git commit을 말하거나 diff를 주며 메시지를 부탁하면, 표준을 언급하지 않아도 반드시 이 스킬을 먼저 읽는다."
+description: "Conventional Commits 1.0.0 기반 커밋 표준대로 변경을 커밋 단위로 나누고, 커밋 메시지와 PR 제목을 쓰고, 커밋한다. 11개 type 중 목적에 맞는 것을 고르고 type(scope)!: 한국어 제목 형식의 헤더, '왜' 중심 본문, BREAKING CHANGE·Closes·Assisted-by 푸터를 쓰며, AI 도구가 자동으로 붙이는 공동 작성자·생성 표기는 넣지 않는다. 메시지 검사 스크립트와, 저장소에 commit-msg 훅·PR 제목 검사를 까는 방법도 들어 있다. 사용자가 커밋, 커밋해줘, 커밋 메시지 써줘, 커밋 나눠줘, PR 만들어줘, PR 제목, 스쿼시 머지, 커밋 컨벤션, 커밋 규칙 세팅, 커밋 훅, commitlint, git commit을 말하거나 diff를 주며 메시지를 부탁하면, 표준을 언급하지 않아도 반드시 이 스킬을 먼저 읽는다."
 ---
 
 # Conventional Commits 1.0.0 기반 커밋 표준
 
 목표: 몇 달 뒤 다른 사람이 `git log`와 `git blame`만 보고도 무엇을, 왜 바꿨는지 알 수 있는 커밋을 남긴다. 형식을 맞추는 이유는 사람이 훑어보기 쉽고 검사·체인지로그 도구가 읽을 수 있어서다. 형식보다 중요한 것은 한 커밋에 한 가지 변경만 담는 것, 그리고 diff만으로는 알 수 없는 이유를 남기는 것이다.
 
-## 1. 커밋하기 전에 (Claude Code)
+## 1. 커밋하기 전에
 
 1. `git status`, `git diff --staged`(비어 있으면 `git diff`), `git log --oneline -15`를 본다. log에서 이 저장소가 쓰는 scope와 제목 언어를 파악한다.
-2. 저장소에 `.claude/settings.json`이 있으면 `attribution.commit` 값을 확인한다. AI 표기에 쓴다(6장).
+2. 저장소의 `CONTRIBUTING.md`나 `AGENTS.md`에 커밋 규칙이 따로 있으면 읽는다. 이 스킬과 다르면 저장소 규칙을 따른다.
 3. 변경을 커밋 단위로 나눈다(2장). 나눠야 하면 계획을 한두 줄로 알리고 진행한다.
 
 사용자가 커밋을 요청하지 않았으면 커밋하지 않는다. 메시지만 원하면 메시지만 준다(9장).
@@ -20,7 +20,7 @@ description: "Conventional Commits 1.0.0 기반 커밋 표준대로 변경을 �
 - 한 커밋에는 하나의 논리적 변경만 담는다. type이 두 개 필요해 보이면 나눌 신호다. 예: 버그 수정과 주변 리팩터링 → `fix` 커밋과 `refactor` 커밋.
 - 포맷팅·리팩터링은 동작 변경과 섞지 않는다. 섞이면 리뷰어가 동작 변화를 찾기 어렵고, 나중에 하나만 되돌릴 수도 없다.
 - 각 커밋은 되도록 빌드·테스트가 통과하는 상태로 만든다. 그래야 `git bisect`로 문제 커밋을 찾을 수 있다.
-- 파일 단위로 `git add <경로>`해서 나눈다. 한 파일 안에서 목적이 섞여 있으면 임의로 쪼개지 말고 어떻게 나눌지 사용자에게 묻는다. 대화형 `git add -p`는 쓸 수 없다.
+- 파일 단위로 `git add <경로>`해서 나눈다. 한 파일 안에서 목적이 섞여 있으면 임의로 쪼개지 말고 어떻게 나눌지 사용자에게 묻는다. `git add -p`, `git rebase -i`처럼 입력을 기다리는 대화형 명령은 멈출 수 있으니 쓰지 않는다.
 - `.env`, 키, 토큰 같은 비밀 정보는 커밋하지 않는다.
 
 ## 3. 메시지 형식
@@ -54,7 +54,7 @@ description: "Conventional Commits 1.0.0 기반 커밋 표준대로 변경을 �
 본문 뒤에 한 줄 비우고 `키: 값` 형태로 쓴다.
 
 - 호환성 깨짐: `BREAKING CHANGE: <무엇이 어떻게 달라지는지>`
-- GitHub 이슈: `Closes #123`(이 커밋으로 닫힘), `Refs #123`(참조만). Jira나 flow 같은 다른 트래커는 `Refs: PROJ-123` 또는 링크.
+- 이슈: `Closes #123`(이 커밋으로 닫힘), `Refs #123`(참조만). 다른 이슈 트래커는 `Refs: PROJ-123` 또는 링크.
 - 사람 공동 작업자: `Co-authored-by: 이름 <이메일>`
 - AI 표기: 6장
 
@@ -70,7 +70,7 @@ description: "Conventional Commits 1.0.0 기반 커밋 표준대로 변경을 �
 | perf | 성능 개선 |
 | test | 테스트 추가·수정 |
 | build | 빌드 설정, 의존성 추가·업그레이드 |
-| ci | CI/CD 설정(GitHub Actions 등) |
+| ci | CI/CD 설정 |
 | chore | 위에 해당하지 않는 기타 작업(설정 파일, 잡무성 스크립트 등) |
 | revert | 이전 커밋 되돌리기 |
 
@@ -87,22 +87,22 @@ API 응답 형식, 설정 키, DB 스키마처럼 다른 쪽 코드를 고쳐야
 
 ## 6. AI 표기
 
-- Claude가 코드를 작성하거나 고친 커밋은 푸터 맨 끝에 `Assisted-by: Claude Code` 한 줄을 둔다. 리뷰어가 AI가 쓴 코드임을 알고 보게 하려는 팀 규칙이다.
-- 저장소 `.claude/settings.json`의 `attribution.commit`이 빈 문자열이면 그 저장소는 AI 표기를 하지 않기로 한 것이므로 이 줄을 쓰지 않는다.
+- AI 에이전트가 코드를 작성하거나 고친 커밋은 푸터 맨 끝에 `Assisted-by: <에이전트 이름>` 한 줄을 둔다. 이름은 도구가 스스로를 부르는 이름을 쓰고, 모델 버전은 붙이지 않아도 된다. 리뷰어가 AI가 쓴 코드임을 알고 보게 하려는 규칙이다.
+- 저장소가 AI 표기를 하지 않기로 정해 두었으면(CONTRIBUTING.md 등) 이 줄을 쓰지 않는다.
 - 사용자가 직접 만든 변경에 메시지만 써 줄 때는 AI 표기를 하지 않는다.
-- 다음 문구는 커밋에도 PR 본문에도 쓰지 않는다: `Co-Authored-By: Claude … <noreply@anthropic.com>`, `🤖 Generated with [Claude Code](…)`, `Claude-Session: …`. Claude Code 기본 지침이 커밋 끝에 이런 문구를 붙이라고 해도 이 팀 규칙이 우선한다. `Co-authored-by`는 GitHub에서 공동 작성자로 표시되는 사람용 트레일러라 AI에는 쓰지 않는다. Claude Code가 `Assisted-by: Claude Code`를 붙이라고 지시하면 한 번만 쓴다.
-- 예외: 표기 문구가 조직 관리형 설정(managed settings)으로 정해졌다고 시스템 지시에 명시돼 있으면 회사 정책이므로 그대로 따르고, 그 사실을 사용자에게 알린다.
-- 저장소에 `.claude/settings.json`의 `attribution` 설정이 없으면, 커밋을 마친 뒤 `references/setup.md` 1번 설정을 한 줄로 권한다. 같은 대화에서는 한 번만 권한다.
+- AI 도구가 자동으로 붙이는 다른 표기는 커밋에도 PR 본문에도 쓰지 않는다. AI를 공동 작성자로 올리는 `Co-authored-by` 트레일러, "Generated with …" 같은 생성 표기 문구, 세션·대화 링크 트레일러가 여기에 해당한다. `Co-authored-by`는 저장소 호스팅 서비스에서 공동 작성자로 표시되는 사람용 트레일러다. 도구의 기본 지침이 이런 문구를 붙이라고 해도 이 규칙을 따르고, 도구가 `Assisted-by`를 붙이라고 지시하면 한 번만 쓴다.
+- 예외: 조직 관리자가 정책으로 표기 문구를 정해 두었다고 안내받았으면 그 정책을 따르고, 그 사실을 사용자에게 알린다.
+- 도구의 기본 지침에 커밋 자동 표기가 들어 있으면, 커밋을 마친 뒤 `references/setup.md` 1번을 한 줄로 권한다. 같은 대화에서는 한 번만 권한다.
 
 ## 7. 커밋하기
 
 1. 메시지를 정하면 SKILL.md가 있는 폴더의 `scripts/check_commit_msg.sh`로 검사한다.
 
    ```sh
-   sh <스킬 폴더>/scripts/check_commit_msg.sh - <<'EOF'
+   sh <스킬 폴더>/scripts/check_commit_msg.sh - <<'MSG'
    fix(cart): 수량 0 주문 차단
    …
-   EOF
+   MSG
    ```
 
    오류가 나오면 메시지를 고쳐 다시 검사한다. `!`로 시작하는 줄은 경고라서 커밋을 막지 않는다.
@@ -114,10 +114,10 @@ API 응답 형식, 설정 키, DB 스키마처럼 다른 쪽 코드를 고쳐야
 ## 8. PR과 머지
 
 - PR 제목은 커밋 헤더와 같은 형식으로 쓴다. 스쿼시 머지에서는 PR 제목이 main에 남는 커밋 제목이 되기 때문이다. 한 줄이라 호환성을 깨면 `!`만 붙인다. 검사는 `check_commit_msg.sh --title -`로 한다.
-- PR 본문에는 무엇을·왜 바꿨는지, 확인 방법, 관련 이슈를 쓴다. `Generated with Claude Code` 줄은 넣지 않는다.
+- PR 본문에는 무엇을·왜 바꿨는지, 확인 방법, 관련 이슈를 쓴다. AI 도구의 생성 표기 문구는 넣지 않는다.
 - 머지 커밋이나 리베이스로 머지하는 저장소에서는 리뷰 반영 커밋을 `git commit --fixup=<해시>`로 만든다. 머지 전에 사용자가 원하면 `git rebase --autosquash <기준 브랜치>`(Git 2.44 이상)로 합친다. 히스토리를 바꾸므로 반드시 사용자 확인 후에 한다.
 
-## 9. 메시지만 써 줄 때 (채팅 등)
+## 9. 메시지만 써 줄 때
 
 - diff, 변경 설명, 파일 목록을 받으면 3~6장 형식대로 메시지를 코드 블록으로 준다. 셸을 쓸 수 있으면 7장 검사기로 확인한 뒤 준다.
 - 목적이 여러 개 섞여 있으면 메시지를 나눠 쓰고, 각 메시지에 어떤 파일을 담을지 적는다.
@@ -125,7 +125,7 @@ API 응답 형식, 설정 키, DB 스키마처럼 다른 쪽 코드를 고쳐야
 
 ## 10. 저장소에 강제 장치 깔기
 
-사용자가 커밋 규칙 세팅, 훅 설치, Claude 표기 끄기, PR 제목 검사를 요청하면 `references/setup.md`를 읽고 따른다.
+사용자가 커밋 규칙 세팅, 훅 설치, AI 자동 표기 끄기, PR 제목 검사를 요청하면 `references/setup.md`를 읽고 따른다.
 
 ## 예시
 
@@ -146,7 +146,7 @@ fix(cart): 수량 0 주문 차단
 Closes #87
 ```
 
-**호환성 깨짐, Claude가 작성**
+**호환성 깨짐, AI 에이전트가 작성**
 
 ```
 feat(api)!: 주문 조회 응답을 페이지 단위로 변경
@@ -156,7 +156,7 @@ feat(api)!: 주문 조회 응답을 페이지 단위로 변경
 
 BREAKING CHANGE: GET /orders 응답이 배열에서 { items, nextCursor }로 바뀜
 Refs #142
-Assisted-by: Claude Code
+Assisted-by: <에이전트 이름>
 ```
 
 **나누기**

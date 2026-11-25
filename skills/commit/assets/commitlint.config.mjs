@@ -1,23 +1,58 @@
 // Conventional Commits 1.0.0 기반 커밋 표준 — commitlint 설정 (commit 스킬)
-// .githooks/commit-msg(scripts/check_commit_msg.sh)와 같은 규칙이다.
+// scripts/check_commit_msg.sh와 같은 규칙이다.
 // husky + commitlint를 이미 쓰는 JS 저장소에서만 필요하다. 둘 중 하나만 걸어도 된다.
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-const CLAUDE_ATTRIBUTION =
-  /^(co-authored-by:.*noreply@anthropic\.com|claude-session:)|generated with \[claude code\]/im;
 const EMPTY_SUBJECTS = new Set([
   '수정', '변경', '업데이트', '작업', '반영', '커밋', '테스트', '임시',
   'wip', 'WIP', 'update', 'Update', 'fix', 'test', 'temp', 'tmp', 'misc',
 ]);
+
+// AI 도구의 자동 표기:
+// - AI를 공동 작성자로 올리는 Co-authored-by: noreply 주소(사람이 쓰는 GitHub noreply 주소는 제외)나 [bot] 계정
+// - 세션·대화 링크 트레일러: <이름>-Session:
+// - 링크가 붙은 생성 표기("Generated with/by [도구](…)")와 로봇 이모지로 시작하는 줄
+function aiAttributionLines(raw) {
+  return (raw ?? '').split(/\r?\n/).filter((line) => {
+    const l = line.toLowerCase();
+    if (l.startsWith('co-authored-by:')) {
+      return (l.includes('noreply@') && !l.includes('users.noreply.github.com')) || l.includes('[bot]');
+    }
+    return /^[a-z0-9][a-z0-9-]*-session:/.test(l) || /generated (with|by) \[/.test(l) || line.startsWith('\u{1F916}');
+  });
+}
+
+// 저장소가 따로 막는 패턴: 저장소 루트의 .commit-msg-deny(또는 COMMIT_MSG_DENY_FILE)
+// 한 줄에 정규식 하나(대소문자 무시). #으로 시작하는 줄과 빈 줄은 건너뛴다.
+function denyPatterns() {
+  const file = process.env.COMMIT_MSG_DENY_FILE || join(process.cwd(), '.commit-msg-deny');
+  if (!existsSync(file)) return [];
+  return readFileSync(file, 'utf8')
+    .split(/\r?\n/)
+    .filter((s) => s.trim() !== '' && !s.trim().startsWith('#'))
+    .map((s) => new RegExp(s, 'im'));
+}
 
 export default {
   extends: ['@commitlint/config-conventional'],
   plugins: [
     {
       rules: {
-        'no-claude-attribution': ({ raw }) => [
-          !CLAUDE_ATTRIBUTION.test(raw ?? ''),
-          'Claude 기본 표기(Co-Authored-By: Claude…, Generated with Claude Code, Claude-Session:)는 쓰지 않습니다. AI가 작성한 코드는 "Assisted-by: Claude Code" 한 줄로 표기합니다.',
-        ],
+        'no-ai-attribution': ({ raw }) => {
+          const lines = aiAttributionLines(raw);
+          return [
+            lines.length === 0,
+            `AI 도구의 자동 표기(AI 공동 작성자 Co-authored-by, 생성 표기 문구, 세션 링크 트레일러)는 쓰지 않습니다. AI가 작성한 코드는 "Assisted-by: <에이전트 이름>" 한 줄로 표기합니다. 문제 줄: ${lines.join(' / ')}`,
+          ];
+        },
+        'repo-deny-patterns': ({ raw }) => {
+          const hits = denyPatterns().filter((re) => re.test(raw ?? ''));
+          return [
+            hits.length === 0,
+            `이 저장소에서 쓰지 않기로 한 표기가 들어 있습니다(.commit-msg-deny): ${hits.map(String).join(', ')}`,
+          ];
+        },
         'breaking-change-pair': ({ header, raw }) => {
           const bang = /^[a-z]+(\([^)]*\))?!: /.test(header ?? '');
           const footer = /^BREAKING[ -]CHANGE: /m.test(raw ?? '');
@@ -52,7 +87,8 @@ export default {
     'body-leading-blank': [2, 'always'],
     'body-max-line-length': [1, 'always', 100],
     'footer-max-line-length': [1, 'always', 100],
-    'no-claude-attribution': [2, 'always'],
+    'no-ai-attribution': [2, 'always'],
+    'repo-deny-patterns': [2, 'always'],
     'breaking-change-pair': [2, 'always'],
     'header-no-emoji': [2, 'always'],
     'subject-not-generic': [2, 'always'],
