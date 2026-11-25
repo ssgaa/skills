@@ -1,0 +1,4 @@
+#!/bin/sh
+# 이 저장소의 커밋 메시지를 commit 스킬의 검사기로 검사한다.
+# 켜기: git config core.hooksPath .githooks
+exec sh "$(git rev-parse --show-toplevel)/skills/commit/scripts/check_commit_msg.sh" "$@"
