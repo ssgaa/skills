@@ -29,6 +29,20 @@ t() {
   fi
 }
 
+# tw <기대 경고 수> <이름> <메시지(printf 형식)>
+# 통과(종료 코드 0)하면서 경고('  ! '로 시작하는 줄)가 기대한 수만큼 나오는지 본다.
+tw() {
+  exp=$1; name=$2; msg=$3
+  out=$(printf "$msg" | $SH "$CHECK" - 2>&1); code=$?
+  n=$(printf '%s\n' "$out" | grep -c '^  ! ')
+  if [ "$code" -eq 0 ] && [ "$n" -eq "$exp" ]; then
+    pass=$((pass + 1)); printf 'ok   %s\n' "$name"
+  else
+    fail=$((fail + 1)); printf 'FAIL %s (기대 경고 %s, 결과 종료 %s 경고 %s)\n' "$name" "$exp" "$code" "$n"
+    printf '%s\n' "$out" | sed 's/^/     /'
+  fi
+}
+
 repeat() { awk -v s="$1" -v n="$2" 'BEGIN { for (i = 0; i < n; i++) printf "%s", s }'; }
 
 # 통과해야 하는 메시지
@@ -70,6 +84,16 @@ t 0 "앞쪽 빈 줄과 주석" '\n\nfeat(auth): 로그인 추가\n# 주석 줄\n
 t 0 "verbose 구분선 아래는 무시" 'feat(auth): 로그인 추가\n\n본문\n# ------------------------ >8 ------------------------\ndiff --git a/x b/x\nCo-authored-by: X <noreply@agent.example>\n'
 t 0 "본문 긴 줄은 경고만" "docs: 안내 갱신\n\n$(repeat 가 101)\n"
 t 1 "빈 메시지" ''
+
+# 본문 줄바꿈 경고(커밋은 막지 않는다)
+tw 0 "본문 72칸(한글 36자)" "docs: 안내 갱신\n\n$(repeat 가 36)\n"
+tw 1 "본문 74칸(한글 37자)" "docs: 안내 갱신\n\n$(repeat 가 37)\n"
+tw 0 "본문 영어 72자" "docs: update install guide\n\n$(repeat a 72)\n"
+tw 1 "본문 영어 73자" "docs: update install guide\n\n$(repeat a 73)\n"
+tw 1 "한 줄에 두 문장" 'refactor: 스킬 위치 이동\n\n스킬을 skills/ 아래로 옮겼다. 파일 내용은 그대로다.\n'
+tw 0 "문장마다 새 줄" 'refactor: 스킬 위치 이동\n\n스킬을 skills/ 아래로 옮겼다.\n파일 내용은 그대로다.\n'
+tw 0 "트레일러 줄은 폭 경고에서 뺌" "feat(api)!: 응답 변경\n\n본문\n\nBREAKING CHANGE: $(repeat 가 40)\n"
+tw 0 "URL이 든 줄은 폭 경고에서 뺌" "docs: 안내 갱신\n\n참고 https://example.com/$(repeat a 80)\n"
 
 # PR 제목 모드
 t 0 "--title: ! 단독 허용" 'feat(api)!: 응답을 페이지 단위로 변경\n' --title

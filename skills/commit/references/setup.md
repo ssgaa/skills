@@ -71,7 +71,7 @@ git config core.hooksPath .githooks
 - AI 도구의 자동 표기: noreply 주소나 `[bot]` 계정의 `Co-authored-by`(사람이 쓰는 GitHub noreply 주소는 허용), 링크가 붙은 생성 문구, 로봇 이모지로 시작하는 줄, `<이름>-Session:` 트레일러
 - `.commit-msg-deny`의 패턴
 
-본문 한 줄이 100자를 넘으면 경고만 한다. `Merge`, `Revert "…"`, `fixup!`, `squash!`, `amend!`로 시작하는 자동 메시지는 건너뛴다.
+본문은 경고만 한다. 한 줄이 72칸(한글·한자 같은 전각 글자는 2칸)을 넘을 때와, "~다."로 끝난 문장 뒤에 같은 줄에서 다음 문장이 이어질 때다. 폭 경고에서 URL이 든 줄과 `키: 값` 형태의 트레일러 줄은 뺀다. `Merge`, `Revert "…"`, `fixup!`, `squash!`, `amend!`로 시작하는 자동 메시지는 건너뛴다.
 
 설치 후 확인:
 

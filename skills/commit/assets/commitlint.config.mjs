@@ -23,6 +23,19 @@ function aiAttributionLines(raw) {
   });
 }
 
+// 터미널에서 차지하는 칸 수. 전각 글자(U+3000–U+DFFF: 한글·한자·가나 등)와 U+10000 이상 문자는 2칸으로 센다.
+// scripts/check_commit_msg.sh의 count_width와 같은 기준이다.
+function displayWidth(line) {
+  let width = 0;
+  for (const ch of line) {
+    const cp = ch.codePointAt(0);
+    width += (cp >= 0x3000 && cp <= 0xdfff) || cp >= 0x10000 ? 2 : 1;
+  }
+  return width;
+}
+
+const TRAILER = /^([A-Za-z][A-Za-z0-9-]*|BREAKING CHANGE): /;
+
 // 저장소가 따로 막는 패턴: 저장소 루트의 .commit-msg-deny(또는 COMMIT_MSG_DENY_FILE)
 // 한 줄에 정규식 하나(대소문자 무시). #으로 시작하는 줄과 빈 줄은 건너뛴다.
 function denyPatterns() {
@@ -65,6 +78,22 @@ export default {
           !/[\p{Extended_Pictographic}\u{FE0F}]/u.test(header ?? ''),
           '헤더에는 이모지를 쓰지 않습니다.',
         ],
+        'body-max-line-width': ({ body }, _when, max = 72) => {
+          const lines = (body ?? '')
+            .split(/\r?\n/)
+            .filter((l) => !l.includes('://') && !TRAILER.test(l) && displayWidth(l) > max);
+          return [
+            lines.length === 0,
+            `본문 한 줄이 ${max}칸을 넘습니다(전각 글자는 2칸). 쉼표나 연결 어미 뒤에서 나눕니다. 문제 줄: ${lines.join(' / ')}`,
+          ];
+        },
+        'body-sentence-per-line': ({ body }) => {
+          const lines = (body ?? '').split(/\r?\n/).filter((l) => /다\. +\S/.test(l));
+          return [
+            lines.length === 0,
+            `한 줄에 문장이 둘 이상입니다. 문장마다 새 줄에서 시작합니다. 문제 줄: ${lines.join(' / ')}`,
+          ];
+        },
         'subject-not-generic': ({ subject }) => [
           !EMPTY_SUBJECTS.has((subject ?? '').trim()),
           '제목만으로 무엇이 바뀌었는지 알 수 있게 바뀐 대상을 넣어 씁니다(예: 결제 버튼 비활성화 조건 수정).',
@@ -85,7 +114,10 @@ export default {
     'subject-full-stop': [2, 'never', '.'],
     'header-max-length': [2, 'always', 72],
     'body-leading-blank': [2, 'always'],
-    'body-max-line-length': [1, 'always', 100],
+    // 글자 수로 세면 한글 줄이 영어 줄의 두 배 폭까지 통과한다. 폭으로 세는 body-max-line-width를 쓴다.
+    'body-max-line-length': [0],
+    'body-max-line-width': [1, 'always', 72],
+    'body-sentence-per-line': [1, 'always'],
     'footer-max-line-length': [1, 'always', 100],
     'no-ai-attribution': [2, 'always'],
     'repo-deny-patterns': [2, 'always'],

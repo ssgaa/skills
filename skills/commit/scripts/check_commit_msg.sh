@@ -13,7 +13,7 @@
 
 TYPES='feat fix docs style refactor perf test build ci chore revert'
 MAX_HEADER=72
-WARN_BODY=100
+WARN_WIDTH=72
 
 mode=full
 if [ "${1:-}" = "--title" ]; then
@@ -54,6 +54,14 @@ warn() { printf '  ! %s\n' "$1" >&2; }
 
 # UTF-8에서 이어지는 바이트(0x80-0xBF)를 빼고 세면 로케일과 상관없이 글자 수가 나온다.
 count_chars() { printf '%s' "$1" | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' '; }
+
+# 터미널에서 차지하는 칸 수. 전각 글자(U+3000-U+DFFF: 한글·한자·가나 등, 첫 바이트 0xE3-0xED)와
+# U+10000 이상 문자(첫 바이트 0xF0-0xF4)는 2칸으로 센다. commitlint 설정의 displayWidth와 같은 기준이다.
+count_width() {
+  _chars=$(count_chars "$1")
+  _wide=$(printf '%s' "$1" | LC_ALL=C tr -cd '\343-\355\360-\364' | wc -c | tr -d ' ')
+  echo $((_chars + _wide))
+}
 
 # 1) type과 헤더 형식
 type=$(printf '%s\n' "$header" | LC_ALL=C sed -n 's/^\([A-Za-z]*\).*/\1/p')
@@ -121,12 +129,18 @@ if [ "$mode" = full ]; then
     err "BREAKING CHANGE 푸터가 있으면 헤더의 type(scope) 뒤에 !를 붙입니다."
   fi
 
-  # 8) 본문의 너무 긴 줄 (경고만)
+  # 8) 본문 줄바꿈 (경고만)
+  #    - 한 줄에 "~다."로 끝난 문장 뒤에 다음 문장이 이어지면
+  #    - 한 줄이 72칸을 넘으면. URL이 든 줄과 `키: 값` 트레일러 줄은 뺀다
   printf '%s\n' "$msg" | sed -n '3,$p' | while IFS= read -r line || [ -n "$line" ]; do
+    if printf '%s\n' "$line" | LC_ALL=C grep -Eq '다[.] +[^ ]'; then
+      warn "한 줄에 문장이 둘 이상입니다. 문장마다 새 줄에서 시작합니다: $line"
+    fi
     case $line in *://*) continue ;; esac
-    n=$(count_chars "$line")
-    if [ "$n" -gt "$WARN_BODY" ]; then
-      warn "본문 한 줄이 ${n}자입니다. 72자 안팎에서 줄바꿈하면 읽기 좋습니다."
+    if printf '%s\n' "$line" | LC_ALL=C grep -Eq '^([A-Za-z][A-Za-z0-9-]*|BREAKING CHANGE): '; then continue; fi
+    w=$(count_width "$line")
+    if [ "$w" -gt "$WARN_WIDTH" ]; then
+      warn "본문 한 줄이 ${w}칸입니다(전각 글자는 2칸). ${WARN_WIDTH}칸을 넘지 않게 쉼표나 연결 어미 뒤에서 나눕니다: $line"
     fi
   done
 fi
