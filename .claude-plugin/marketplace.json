@@ -1,0 +1,19 @@
+{
+  "name": "ssgaa",
+  "owner": {
+    "name": "ssgaa",
+    "url": "https://github.com/ssgaa"
+  },
+  "description": "Agent Skills 표준(SKILL.md)으로 쓴 에이전트 스킬 모음",
+  "plugins": [
+    {
+      "name": "dev",
+      "displayName": "개발 워크플로",
+      "description": "개발 워크플로 스킬. commit: Conventional Commits 1.0.0 기반 커밋 표준대로 커밋을 나누고 메시지와 PR 제목을 쓴다",
+      "source": "./",
+      "skills": ["./skills/commit"],
+      "repository": "https://github.com/ssgaa/skills",
+      "keywords": ["git", "commit", "conventional-commits"]
+    }
+  ]
+}
